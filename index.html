@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Aprende las Horas - Las Flechas del Reloj</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Fredoka & Nunito -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            fredoka: ['Fredoka', 'sans-serif'],
+            nunito: ['Nunito', 'sans-serif']
+          },
+          colors: {
+            hourColor: '#FF2A6D',   /* Vibrant Coral Red Arrow */
+            minuteColor: '#00B4D8', /* Vibrant Cyan Blue Arrow */
+            clockBg: '#FFFDF5',
+          },
+          animation: {
+            'bounce-gentle': 'bounceGentle 2s infinite',
+            'pulse-glow': 'pulseGlow 1.6s infinite',
+            'float-slow': 'floatSlow 3s ease-in-out infinite',
+            'pop-in': 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+          },
+          keyframes: {
+            bounceGentle: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-5px)' }
+            },
+            pulseGlow: {
+              '0%, 100%': { filter: 'drop-shadow(0 0 5px rgba(255, 42, 109, 0.6))' },
+              '50%': { filter: 'drop-shadow(0 0 15px rgba(0, 180, 216, 0.9))' }
+            },
+            floatSlow: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-6px)' }
+            },
+            popIn: {
+              '0%': { opacity: '0', transform: 'scale(0.8)' },
+              '100%': { opacity: '1', transform: 'scale(1)' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background: linear-gradient(135deg, #4F46E5 0%, #3B82F6 35%, #06B6D4 70%, #10B981 100%);
+      background-attachment: fixed;
+      min-height: 100vh;
+      min-height: 100dvh;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+      overflow-x: hidden;
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 3px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 16px 28px -10px rgba(0, 0, 0, 0.2), 0 6px 10px -4px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Arrow Draggable Knobs Styling */
+    .arrow-drag-handle {
+      cursor: grab;
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+    .arrow-drag-handle:hover, .arrow-drag-handle:active {
+      cursor: grabbing;
+      transform: scale(1.25);
+    }
+
+    .dragging-active {
+      cursor: grabbing !important;
+    }
+
+    /* Progress bar smooth transition */
+    .progress-bar-fill {
+      transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* Confetti Canvas Overlay */
+    #confetti-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 120;
+    }
+  </style>
+</head>
+<body class="font-nunito text-slate-800 flex flex-col min-h-screen justify-between p-2 sm:p-4">
+
+  <canvas id="confetti-canvas"></canvas>
+
+  <header class="w-full max-w-5xl mx-auto flex flex-col gap-2 mb-2">
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+      
+      <!-- Logo & App Title -->
+      <div class="flex items-center gap-2 sm:gap-3 bg-white/95 px-3 py-1.5 sm:px-4 sm:py-2 rounded-2xl shadow-md border-2 border-white">
+        <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-amber-400 to-rose-500 flex items-center justify-center text-white text-xl sm:text-2xl shadow-inner font-fredoka animate-bounce-gentle">
+          🏹
+        </div>
+        <div>
+          <h1 class="font-fredoka text-base sm:text-xl font-black text-indigo-950 leading-tight">Reloj Educativo Interactivo</h1>
+          <p class="text-[10px] sm:text-xs font-bold text-rose-600">¡Aprende a decir la hora jugando!</p>
+        </div>
+      </div>
+
+      <!-- Level Score, Stars, and Audio Controls -->
+      <div class="flex items-center gap-2 flex-wrap ml-auto">
+        <div class="flex items-center gap-2 sm:gap-3 bg-white/95 px-3 py-1.5 rounded-2xl border-2 border-white shadow-md text-xs sm:text-sm font-fredoka font-extrabold">
+          <div class="flex items-center gap-1 text-amber-500" title="Estrellas ganadas">
+            <span>⭐</span>
+            <span id="star-count">0</span>
+          </div>
+          <div class="w-0.5 h-4 bg-slate-200"></div>
+          <div class="flex items-center gap-1 text-indigo-700" title="Puntos acumulados">
+            <span>🎯</span>
+            <span id="score-count">0 pts</span>
+          </div>
+          <div class="w-0.5 h-4 bg-slate-200"></div>
+          <div class="flex items-center gap-1 text-orange-500" title="Racha consecutiva">
+            <span>🔥</span>
+            <span id="streak-count">0</span>
+          </div>
+        </div>
+
+        <!-- Audio Toggles -->
+        <div class="flex items-center gap-1 bg-white/95 p-1 rounded-2xl border-2 border-white shadow-md">
+          <button id="btn-sound" onclick="toggleSound()" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center text-base sm:text-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 active:scale-95 transition" title="Efectos de Sonido">
+            🔊
+          </button>
+          <button id="btn-speech" onclick="toggleSpeech()" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center text-base sm:text-lg bg-rose-50 text-rose-700 hover:bg-rose-100 active:scale-95 transition" title="Lectura por voz">
+            🗣️
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 40-ROUND PROGRESS BAR -->
+    <div class="bg-white/90 backdrop-blur rounded-2xl p-2.5 border-2 border-white shadow-md flex flex-col gap-1.5">
+      <div class="flex items-center justify-between text-xs sm:text-sm font-fredoka font-black">
+        <div class="flex items-center gap-1.5 text-indigo-950">
+          <span class="px-2 py-0.5 rounded-lg bg-indigo-600 text-white text-[11px] font-bold uppercase tracking-wide" id="level-badge">Nivel 1</span>
+          <span id="level-title-text" class="text-indigo-900">Horas exactas (:00)</span>
+        </div>
+        <div class="text-rose-600 flex items-center gap-1">
+          <span>🚩 Ronda</span>
+          <span id="round-counter-text" class="text-sm sm:text-base font-extrabold text-indigo-950">1</span>
+          <span class="text-slate-400 font-bold">/ 40</span>
+        </div>
+      </div>
+
+      <!-- Outer Track -->
+      <div class="w-full bg-slate-200 h-3.5 sm:h-4 rounded-full overflow-hidden p-0.5 border border-slate-300 relative shadow-inner">
+        <div id="round-progress-bar" class="bg-gradient-to-r from-amber-400 via-rose-500 to-indigo-600 h-full rounded-full progress-bar-fill shadow-sm" style="width: 2.5%;"></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 w-full max-w-5xl mx-auto flex flex-col gap-3 justify-center">
+
+    <!-- Game Mode Selection Navigation -->
+    <div class="grid grid-cols-3 gap-1.5 p-1 bg-white/30 backdrop-blur rounded-2xl max-w-2xl mx-auto w-full border-2 border-white/50 shadow-md">
+      <button id="tab-mode-1" onclick="switchMode(1)" class="py-2 px-2 sm:px-3 rounded-xl font-fredoka text-xs sm:text-sm md:text-base font-bold transition shadow-md bg-amber-400 text-indigo-950 hover:bg-amber-300 active:scale-95 flex items-center justify-center gap-1">
+        <span>🏹</span> <span class="hidden sm:inline">Modo</span> <span>Ajusta</span>
+      </button>
+      <button id="tab-mode-2" onclick="switchMode(2)" class="py-2 px-2 sm:px-3 rounded-xl font-fredoka text-xs sm:text-sm md:text-base font-bold transition text-white hover:bg-white/20 active:scale-95 flex items-center justify-center gap-1">
+        <span>👀</span> <span class="hidden sm:inline">Modo</span> <span>Lee</span>
+      </button>
+      <button id="tab-mode-3" onclick="switchMode(3)" class="py-2 px-2 sm:px-3 rounded-xl font-fredoka text-xs sm:text-sm md:text-base font-bold transition text-white hover:bg-white/20 active:scale-95 flex items-center justify-center gap-1">
+        <span>🎨</span> <span>Libre</span>
+      </button>
+    </div>
+
+    <!-- Difficulty Level Selector Bar (4 Levels x 40 Rounds) -->
+    <div id="difficulty-bar" class="flex items-center justify-center gap-1 sm:gap-2 flex-wrap">
+      <span class="text-[11px] font-black text-white uppercase tracking-wider bg-indigo-950/40 px-2 py-0.5 rounded-lg backdrop-blur">Elegir Nivel:</span>
+      <button onclick="setDifficulty(1)" class="diff-btn px-2.5 py-1 rounded-xl text-xs sm:text-sm font-fredoka font-bold transition bg-rose-500 text-white shadow-md border-2 border-white" data-diff="1">N1: En punto</button>
+      <button onclick="setDifficulty(2)" class="diff-btn px-2.5 py-1 rounded-xl text-xs sm:text-sm font-fredoka font-bold transition bg-white/80 text-indigo-950 hover:bg-white shadow-sm border-2 border-transparent" data-diff="2">N2: Y media</button>
+      <button onclick="setDifficulty(3)" class="diff-btn px-2.5 py-1 rounded-xl text-xs sm:text-sm font-fredoka font-bold transition bg-white/80 text-indigo-950 hover:bg-white shadow-sm border-2 border-transparent" data-diff="3">N3: Cuartos</button>
+      <button onclick="setDifficulty(4)" class="diff-btn px-2.5 py-1 rounded-xl text-xs sm:text-sm font-fredoka font-bold transition bg-white/80 text-indigo-950 hover:bg-white shadow-sm border-2 border-transparent" data-diff="4">N4: Minutos</button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-stretch flex-1">
+
+      <!-- LEFT COLUMN: SVG Analog Clock Face & Arrow Control Buttons -->
+      <div class="lg:col-span-7 flex flex-col items-center justify-between glass-card rounded-3xl p-3 sm:p-5 relative min-h-[350px]">
+        
+        <!-- Live Dragging Status Badge -->
+        <div id="drag-indicator" class="absolute top-2.5 left-3 px-2.5 py-0.5 rounded-full bg-rose-100 border border-rose-300 text-[11px] font-extrabold text-rose-800 transition opacity-0 pointer-events-none z-10 shadow-sm flex items-center gap-1">
+          <span id="drag-hand-name">Moviendo Flecha...</span>
+        </div>
+
+        <!-- Legend for Arrow Colors -->
+        <div class="absolute top-2.5 right-3 flex items-center gap-2 text-[10px] sm:text-xs font-black z-10">
+          <div class="flex items-center gap-1 bg-rose-100 px-2 py-0.5 rounded-full text-rose-700 border border-rose-200 shadow-sm">
+            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+            <span>Corta (Hora)</span>
+          </div>
+          <div class="flex items-center gap-1 bg-sky-100 px-2 py-0.5 rounded-full text-sky-700 border border-sky-200 shadow-sm">
+            <span class="w-2 h-2 rounded-full bg-sky-500"></span>
+            <span>Larga (Minuto)</span>
+          </div>
+        </div>
+
+        <!-- SVG Interactive Clock Canvas (Fluid Scaling for Mobile & Desktop) -->
+        <div class="relative w-full max-w-[320px] sm:max-w-[370px] aspect-square flex items-center justify-center my-auto pt-5 pb-1">
+          <svg id="clock-svg" viewBox="0 0 400 400" class="w-full h-full max-h-[42vh] sm:max-h-[380px] drop-shadow-2xl touch-none select-none">
+            
+            <defs>
+              <!-- Drop Shadows for 3D depth -->
+              <filter id="shadow-hand" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="2" dy="4" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.35"/>
+              </filter>
+
+              <!-- Radial Gradient for Clock Face Body -->
+              <radialGradient id="clockFaceGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#FFFFFF"/>
+                <stop offset="85%" stop-color="#FFFDF5"/>
+                <stop offset="100%" stop-color="#FEF3C7"/>
+              </radialGradient>
+
+              <!-- Gradients for Arrow Hands -->
+              <linearGradient id="hourArrowGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" stop-color="#FF1744"/>
+                <stop offset="100%" stop-color="#FF5252"/>
+              </linearGradient>
+
+              <linearGradient id="minArrowGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" stop-color="#0091EA"/>
+                <stop offset="100%" stop-color="#40C4FF"/>
+              </linearGradient>
+            </defs>
+
+            <!-- Outer Pastel Decorative Rings -->
+            <circle cx="200" cy="200" r="195" fill="#FDE047" />
+            <circle cx="200" cy="200" r="186" fill="#38BDF8" />
+            <circle cx="200" cy="200" r="176" fill="url(#clockFaceGrad)" stroke="#10B981" stroke-width="7" />
+
+            <!-- Minute Outer Labels (00, 05, 10 ... 55) -->
+            <g id="minute-outer-labels" font-family="Fredoka, sans-serif" font-weight="700" font-size="10" fill="#0284C7" text-anchor="middle" dominant-baseline="central"></g>
+
+            <!-- Minute Ticks & Hour Ticks -->
+            <g id="clock-ticks"></g>
+
+            <!-- 1 to 12 Big Colorful Numbers -->
+            <g id="clock-numbers" font-family="Fredoka, sans-serif" font-weight="800" text-anchor="middle" dominant-baseline="central"></g>
+
+            <!-- Hint Arrow Guide Lines -->
+            <line id="hint-hour-line" x1="200" y1="200" x2="200" y2="105" stroke="#FF1744" stroke-width="10" stroke-linecap="round" stroke-dasharray="6 6" opacity="0" />
+            <line id="hint-min-line" x1="200" y1="200" x2="200" y2="55" stroke="#0091EA" stroke-width="7" stroke-linecap="round" stroke-dasharray="6 6" opacity="0" />
+
+            <!-- HOUR ARROW GROUP (Red Short Arrow) -->
+            <g id="group-hour-hand" filter="url(#shadow-hand)">
+              <!-- Arrow Stem -->
+              <rect x="191" y="115" width="18" height="85" rx="9" fill="url(#hourArrowGrad)" />
+              <!-- Arrow Head Tip Pointing Up -->
+              <polygon points="200,80 176,120 224,120" fill="url(#hourArrowGrad)" stroke="#B71C1C" stroke-width="2" stroke-linejoin="round" />
+              <!-- Draggable Touch Knob on Arrow Tip -->
+              <circle id="target-hour" cx="200" cy="88" r="20" fill="#FF1744" stroke="#FFFFFF" stroke-width="4" class="arrow-drag-handle" />
+              <path d="M200 80 L193 92 L207 92 Z" fill="#FFFFFF" pointer-events="none" />
+              <text x="200" y="97" font-family="Fredoka, sans-serif" font-size="9" font-weight="900" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central" pointer-events="none">HORA</text>
+            </g>
+
+            <!-- MINUTE ARROW GROUP (Blue Long Arrow) -->
+            <g id="group-minute-hand" filter="url(#shadow-hand)">
+              <!-- Arrow Stem -->
+              <rect x="193" y="60" width="14" height="140" rx="7" fill="url(#minArrowGrad)" />
+              <!-- Arrow Head Tip Pointing Up -->
+              <polygon points="200,28 180,68 220,68" fill="url(#minArrowGrad)" stroke="#01579B" stroke-width="2" stroke-linejoin="round" />
+              <!-- Draggable Touch Knob on Arrow Tip -->
+              <circle id="target-minute" cx="200" cy="38" r="19" fill="#0091EA" stroke="#FFFFFF" stroke-width="4" class="arrow-drag-handle" />
+              <path d="M200 30 L193 42 L207 42 Z" fill="#FFFFFF" pointer-events="none" />
+              <text x="200" y="46" font-family="Fredoka, sans-serif" font-size="8" font-weight="900" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central" pointer-events="none">MIN</text>
+            </g>
+
+            <!-- Center Pin Rainbow Hub -->
+            <circle cx="200" cy="200" r="15" fill="#1E293B" filter="url(#shadow-hand)" />
+            <circle cx="200" cy="200" r="9" fill="#FACC15" />
+            <circle cx="200" cy="200" r="4" fill="#FFFFFF" />
+          </svg>
+        </div>
+
+        <!-- Fine Adjustment Arrow Buttons -->
+        <div class="w-full mt-1 pt-2 border-t border-slate-200/80 flex flex-col gap-1">
+          <div class="text-center text-[10px] sm:text-xs font-black text-slate-500 uppercase tracking-wider">Ajuste fino con flechas ⬆️⬇️</div>
+          
+          <div class="grid grid-cols-6 gap-1 sm:gap-1.5">
+            <!-- Hour Controls -->
+            <button onclick="addTime(-60)" class="py-1.5 px-1 bg-rose-100 hover:bg-rose-200 text-rose-800 rounded-xl font-fredoka font-extrabold text-xs active:scale-95 transition shadow-sm border border-rose-300 flex items-center justify-center gap-0.5" title="Restar 1 Hora">
+              <span>⬅️</span> <span>-1H</span>
+            </button>
+            <button onclick="addTime(60)" class="py-1.5 px-1 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-fredoka font-extrabold text-xs active:scale-95 transition shadow-sm border border-rose-600 flex items-center justify-center gap-0.5" title="Sumar 1 Hora">
+              <span>+1H</span> <span>➡️</span>
+            </button>
+
+            <!-- Minute Controls -->
+            <button onclick="addTime(-15)" class="py-1.5 px-1 bg-sky-100 hover:bg-sky-200 text-sky-800 rounded-xl font-fredoka font-extrabold text-xs active:scale-95 transition shadow-sm border border-sky-300 flex items-center justify-center gap-0.5" title="Restar 15 Minutos">
+              <span>↺</span> <span>-15m</span>
+            </button>
+            <button onclick="addTime(15)" class="py-1.5 px-1 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-fredoka font-extrabold text-xs active:scale-95 transition shadow-sm border border-sky-600 flex items-center justify-center gap-0.5" title="Sumar 15 Minutos">
+              <span>+15m</span> <span>↻</span>
+            </button>
+
+            <!-- Fine Minute Step Controls -->
+            <button onclick="addTime(-1)" class="py-1.5 px-1 bg-cyan-100 hover:bg-cyan-200 text-cyan-900 rounded-xl font-fredoka font-extrabold text-xs active:scale-95 transition shadow-sm border border-cyan-300 flex items-center justify-center gap-0.5" title="Restar 1 Minuto">
+              <span>◀</span> <span>-1m</span>
+            </button>
+            <button onclick="addTime(1)" class="py-1.5 px-1 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-fredoka font-extrabold text-xs active:scale-95 transition shadow-sm border border-cyan-700 flex items-center justify-center gap-0.5" title="Sumar 1 Minuto">
+              <span>+1m</span> <span>▶</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN: Task Card, Digital Clocks, Mascot & Answer Controls -->
+      <div class="lg:col-span-5 flex flex-col justify-between gap-2 sm:gap-3">
+        
+        <!-- Task Objective Display Card (Challenge Mode) -->
+        <div id="card-task" class="glass-card rounded-3xl p-4 sm:p-5 text-center flex flex-col items-center justify-center relative overflow-hidden min-h-[140px]">
+          <span id="task-badge" class="px-3 py-0.5 rounded-full bg-amber-400 text-indigo-950 font-fredoka text-[11px] font-black mb-1.5 shadow-sm uppercase tracking-wider">
+            🎯 ¡PON LAS FLECHAS EN ESTA HORA! 🎯
+          </span>
+          <div id="target-display" class="font-fredoka text-4xl sm:text-5xl font-black text-indigo-950 tracking-tight my-1">
+            04:15
+          </div>
+          <div id="target-spanish-text" class="text-sm sm:text-base font-bold text-rose-600 mt-1">
+            "Las cuatro y cuarto"
+          </div>
+        </div>
+
+        <!-- Read Mode: Multiple Choice Answers Grid -->
+        <div id="container-choices" class="hidden grid grid-cols-2 gap-2">
+          <!-- Dynamically populated choice buttons -->
+        </div>
+
+        <!-- Real-Time Digital Clock Display (Free Practice Mode) -->
+        <div id="card-digital" class="glass-card rounded-3xl p-3 sm:p-4 flex flex-col items-center justify-center">
+          <div class="text-[10px] sm:text-xs font-extrabold text-slate-400 uppercase tracking-wider mb-1">Reloj Digital en Vivo</div>
+          
+          <div class="flex items-center gap-1.5 bg-slate-900 text-emerald-400 font-mono text-3xl sm:text-4xl font-extrabold px-5 py-2.5 rounded-2xl shadow-inner border-4 border-slate-800 tracking-wider">
+            <span id="digital-hours">04</span>
+            <span class="animate-pulse text-emerald-500">:</span>
+            <span id="digital-minutes">15</span>
+            <span id="digital-ampm" class="text-xs text-slate-400 font-sans font-bold ml-1">AM</span>
+          </div>
+
+          <div id="live-spanish-text" class="text-xs sm:text-sm font-extrabold text-indigo-900 mt-2 text-center">
+            Son las cuatro y cuarto
+          </div>
+        </div>
+
+        <!-- Mascot & Speech Bubble Card -->
+        <div id="mascot-card" class="glass-card rounded-3xl p-3 flex items-center gap-3">
+          <div id="mascot-avatar" class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-amber-300 border-2 border-amber-400 flex items-center justify-center text-2xl sm:text-3xl shadow-md flex-shrink-0 animate-float-slow">
+            🦉
+          </div>
+          <div class="flex-1">
+            <div id="mascot-title" class="font-fredoka text-[11px] font-bold text-indigo-600 uppercase">Profe Búho dice:</div>
+            <div id="mascot-message" class="font-fredoka text-xs sm:text-sm font-bold text-slate-800 leading-snug">
+              ¡Mueve las flechas roja y azul para poner la hora indicada! 🚀
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons Bar -->
+        <div class="flex items-center gap-2">
+          <button id="btn-check" onclick="checkAnswer()" class="flex-1 py-3 px-3 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-500 hover:to-teal-600 text-white font-fredoka font-extrabold text-base sm:text-lg shadow-lg shadow-emerald-500/25 transition transform active:scale-95 border-b-4 border-emerald-700 flex items-center justify-center gap-1.5">
+            <span>✅ ¡Comprobar Hora!</span>
+          </button>
+
+          <button id="btn-speak-current" onclick="speakCurrentTime()" class="p-3 rounded-2xl bg-white hover:bg-slate-50 text-indigo-700 border-2 border-indigo-200 font-bold shadow-md active:scale-95 transition text-lg sm:text-xl" title="Escuchar hora en voz alta">
+            🗣️
+          </button>
+
+          <button id="btn-hint" onclick="toggleHint()" class="p-3 rounded-2xl bg-amber-300 hover:bg-amber-400 text-indigo-950 font-bold shadow-md active:scale-95 transition text-lg sm:text-xl border-2 border-amber-400" title="Ver Pista">
+            💡
+          </button>
+
+          <button id="btn-next" onclick="nextRound()" class="hidden flex-1 py-3 px-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-fredoka font-extrabold text-base sm:text-lg shadow-lg shadow-indigo-500/25 transition active:scale-95 border-b-4 border-indigo-800 flex items-center justify-center gap-1.5">
+            <span>¡Siguiente Ronda! ➔</span>
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- LEVEL COMPLETION MODAL DIALOG (Triggered after Round 40/40) -->
+  <div id="victory-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-card max-w-md w-full rounded-3xl p-6 text-center animate-pop-in border-4 border-amber-300 shadow-2xl relative">
+      <div class="w-20 h-20 mx-auto -mt-12 rounded-3xl bg-gradient-to-tr from-amber-300 to-amber-500 border-4 border-white flex items-center justify-center text-4xl shadow-lg">
+        🏆
+      </div>
+      <h2 class="font-fredoka text-2xl sm:text-3xl font-black text-indigo-950 mt-2">¡Nivel Completado!</h2>
+      <p id="victory-subtitle" class="text-xs sm:text-sm font-bold text-rose-600 mt-1">¡Has superado las 40 rondas con éxito!</p>
+
+      <!-- Stats Summary -->
+      <div class="grid grid-cols-3 gap-2 my-4 bg-indigo-50/80 p-3 rounded-2xl border border-indigo-100 font-fredoka">
+        <div>
+          <div class="text-[10px] text-slate-500 uppercase font-extrabold">Estrellas</div>
+          <div id="modal-stars" class="text-xl font-black text-amber-500">⭐ 0</div>
+        </div>
+        <div>
+          <div class="text-[10px] text-slate-500 uppercase font-extrabold">Puntos</div>
+          <div id="modal-score" class="text-xl font-black text-indigo-700">0 pts</div>
+        </div>
+        <div>
+          <div class="text-[10px] text-slate-500 uppercase font-extrabold">Aciertos</div>
+          <div class="text-xl font-black text-emerald-600">40/40</div>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <button id="btn-next-level" onclick="advanceToNextLevel()" class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-500 hover:to-teal-600 text-white font-fredoka font-black text-lg shadow-lg active:scale-95 transition border-b-4 border-emerald-700">
+          🚀 ¡Pasar al Siguiente Nivel!
+        </button>
+        <button onclick="restartCurrentLevel()" class="w-full py-2.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-fredoka font-bold text-sm active:scale-95 transition border border-slate-300">
+          🔄 Repetir este Nivel (40 Rondas)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="w-full text-center py-1 text-[11px] font-bold text-white/90 drop-shadow">
+    ¡Mueve las flechas roja y azul con el ratón o con tu dedo en la pantalla táctil! ⏰
+  </footer>
+
+  <script>
+    /* =========================================================================
+       GAME STATE & LEVEL CONFIGURATION (4 LEVELS x 40 ROUNDS)
+       ========================================================================= */
+    let currentMode = 1;       // 1: Ajusta las flechas, 2: Lee la hora, 3: Modo libre
+    let currentDifficulty = 1; // 1 to 4
+    let currentRound = 1;      // 1 to 40 per level
+    const TOTAL_ROUNDS = 40;   // 40 rounds requirement
+
+    // Continuous time model: total minutes in 12-hour span [0 to 719]
+    let totalMinutes = 255;    // Default 04:15 (4*60 + 15)
+    let targetTotalMinutes = 255;
+
+    let score = 0;
+    let stars = 0;
+    let streak = 0;
+
+    let soundEnabled = true;
+    let speechEnabled = true;
+    let hintActive = false;
+
+    // Pointer Dragging Engine
+    let activeDragHand = null; // 'hour' | 'minute' | null
+    let lastPointerAngleRad = 0;
+
+    // Audio Context
+    let audioCtx = null;
+
+    const levelDescriptions = {
+      1: { name: "Nivel 1", title: "Horas exactas (:00)", step: 60 },
+      2: { name: "Nivel 2", title: "Horas y medias (:00, :30)", step: 30 },
+      3: { name: "Nivel 3", title: "Cuartos de hora (:00, :15, :30, :45)", step: 15 },
+      4: { name: "Nivel 4", title: "Minuto a minuto (cualquier hora)", step: 1 }
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderClockFace();
+      setupPointerEvents();
+      setDifficulty(1);
+      switchMode(1);
+    });
+
+    function renderClockFace() {
+      const ticksGroup = document.getElementById('clock-ticks');
+      const numbersGroup = document.getElementById('clock-numbers');
+      const minuteLabelsGroup = document.getElementById('minute-outer-labels');
+      
+      ticksGroup.innerHTML = '';
+      numbersGroup.innerHTML = '';
+      minuteLabelsGroup.innerHTML = '';
+
+      const cx = 200;
+      const cy = 200;
+
+      // Draw 60 Minute Ticks
+      for (let i = 0; i < 60; i++) {
+        const angleRad = (i * 6 - 90) * (Math.PI / 180);
+        const isFiveMin = (i % 5 === 0);
+        
+        const innerR = isFiveMin ? 148 : 158;
+        const outerR = 166;
+        const strokeW = isFiveMin ? 4 : 2;
+        const strokeColor = isFiveMin ? '#1E293B' : '#94A3B8';
+
+        const x1 = cx + outerR * Math.cos(angleRad);
+        const y1 = cy + outerR * Math.sin(angleRad);
+        const x2 = cx + innerR * Math.cos(angleRad);
+        const y2 = cy + innerR * Math.sin(angleRad);
+
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', x1);
+        line.setAttribute('y1', y1);
+        line.setAttribute('x2', x2);
+        line.setAttribute('y2', y2);
+        line.setAttribute('stroke', strokeColor);
+        line.setAttribute('stroke-width', strokeW);
+        line.setAttribute('stroke-linecap', 'round');
+        ticksGroup.appendChild(line);
+
+        // Draw minute labels (00, 05, 10... 55)
+        if (isFiveMin) {
+          const mRadius = 172;
+          const mx = cx + mRadius * Math.cos(angleRad);
+          const my = cy + mRadius * Math.sin(angleRad);
+          const minText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          minText.setAttribute('x', mx);
+          minText.setAttribute('y', my);
+          minText.textContent = i.toString().padStart(2, '0');
+          minuteLabelsGroup.appendChild(minText);
+        }
+      }
+
+      // Draw Big Hour Numbers (1 to 12)
+      const numberColors = ['#FF2A6D', '#10B981', '#00B4D8', '#F59E0B', '#6366F1', '#EC4899', '#14B8A6', '#8B5CF6', '#FF2A6D', '#10B981', '#00B4D8', '#F59E0B'];
+
+      for (let num = 1; num <= 12; num++) {
+        const angleRad = (num * 30 - 90) * (Math.PI / 180);
+        const nx = cx + 130 * Math.cos(angleRad);
+        const ny = cy + 130 * Math.sin(angleRad);
+
+        const bgCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        bgCircle.setAttribute('cx', nx);
+        bgCircle.setAttribute('cy', ny);
+        bgCircle.setAttribute('r', '17');
+        bgCircle.setAttribute('fill', '#FFFFFF');
+        bgCircle.setAttribute('stroke', numberColors[num - 1]);
+        bgCircle.setAttribute('stroke-width', '3');
+        bgCircle.setAttribute('filter', 'url(#shadow-hand)');
+        numbersGroup.appendChild(bgCircle);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', nx);
+        text.setAttribute('y', ny + 1);
+        text.setAttribute('font-size', '18');
+        text.setAttribute('fill', '#0F172A');
+        text.textContent = num;
+        numbersGroup.appendChild(text);
+      }
+    }
+
+    /* =========================================================================
+       FLUID 360° ARROW DRAGGING ENGINE (MOUSE & TOUCH)
+       ========================================================================= */
+    function setupPointerEvents() {
+      const targetHour = document.getElementById('target-hour');
+      const targetMinute = document.getElementById('target-minute');
+
+      targetHour.addEventListener('pointerdown', (e) => startDrag(e, 'hour', targetHour));
+      targetMinute.addEventListener('pointerdown', (e) => startDrag(e, 'minute', targetMinute));
+
+      window.addEventListener('pointermove', onDrag);
+      window.addEventListener('pointerup', stopDrag);
+      window.addEventListener('pointercancel', stopDrag);
+    }
+
+    function getPointerAngleRad(e) {
+      const clockSvg = document.getElementById('clock-svg');
+      const rect = clockSvg.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+
+      return Math.atan2(dy, dx);
+    }
+
+    function startDrag(e, handType, targetElem) {
+      if (currentMode === 2) return; // Locked in Read Mode
+      e.preventDefault();
+
+      if (targetElem && targetElem.setPointerCapture) {
+        try { targetElem.setPointerCapture(e.pointerId); } catch(err){}
+      }
+
+      activeDragHand = handType;
+      lastPointerAngleRad = getPointerAngleRad(e);
+
+      const indicator = document.getElementById('drag-indicator');
+      const label = document.getElementById('drag-hand-name');
+      label.textContent = handType === 'hour' ? 'Moviendo Flecha CORTA (Hora)' : 'Moviendo Flecha LARGA (Minuto)';
+      indicator.classList.remove('opacity-0');
+
+      document.body.classList.add('dragging-active');
+
+      initAudio();
+      playTickSound();
+    }
+
+    function onDrag(e) {
+      if (!activeDragHand) return;
+
+      const currentAngleRad = getPointerAngleRad(e);
+      let deltaRad = currentAngleRad - lastPointerAngleRad;
+
+      // Smooth 360° boundary handling
+      if (deltaRad > Math.PI) deltaRad -= Math.PI * 2;
+      if (deltaRad < -Math.PI) deltaRad += Math.PI * 2;
+
+      const deltaDeg = deltaRad * (180 / Math.PI);
+      lastPointerAngleRad = currentAngleRad;
+
+      if (activeDragHand === 'minute') {
+        const deltaMinutes = deltaDeg / 6;
+        totalMinutes = (totalMinutes + deltaMinutes + 7200) % 720;
+      } 
+      else if (activeDragHand === 'hour') {
+        const deltaMinutes = deltaDeg * 2;
+        totalMinutes = (totalMinutes + deltaMinutes + 7200) % 720;
+      }
+
+      playTickSound();
+      updateClockDisplay();
+    }
+
+    function stopDrag(e) {
+      if (!activeDragHand) return;
+      
+      snapToDifficultyStep();
+
+      activeDragHand = null;
+      document.getElementById('drag-indicator').classList.add('opacity-0');
+      document.body.classList.remove('dragging-active');
+      updateClockDisplay();
+    }
+
+    function snapToDifficultyStep() {
+      const step = getDifficultyStep();
+      totalMinutes = Math.round(totalMinutes / step) * step % 720;
+    }
+
+    function addTime(minutesDelta) {
+      initAudio();
+      playTickSound();
+      totalMinutes = (totalMinutes + minutesDelta + 7200) % 720;
+      updateClockDisplay();
+    }
+
+    function getDifficultyStep() {
+      return levelDescriptions[currentDifficulty].step;
+    }
+
+    /* =========================================================================
+       CLOCK DISPLAY & ROTATION CALCULATIONS
+       ========================================================================= */
+    function updateClockDisplay() {
+      const minutes = Math.floor(totalMinutes % 60);
+      const hours12 = Math.floor(totalMinutes / 60) % 12 || 12;
+
+      const minAngle = (totalMinutes % 60) * 6;
+      const hourAngle = totalMinutes * 0.5;
+
+      setGroupAngle('group-minute-hand', minAngle);
+      setGroupAngle('group-hour-hand', hourAngle);
+
+      const hStr = hours12.toString().padStart(2, '0');
+      const mStr = minutes.toString().padStart(2, '0');
+
+      document.getElementById('digital-hours').textContent = hStr;
+      document.getElementById('digital-minutes').textContent = mStr;
+
+      const spanishStr = getTimeInSpanish(hours12, minutes);
+      document.getElementById('live-spanish-text').textContent = spanishStr;
+
+      if (hintActive) {
+        updateHintGuides();
+      }
+    }
+
+    function setGroupAngle(groupId, angleDegrees) {
+      const group = document.getElementById(groupId);
+      group.setAttribute('transform', `rotate(${angleDegrees}, 200, 200)`);
+    }
+
+    function getTimeInSpanish(h12, m) {
+      const nums = ["", "una", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce"];
+
+      let currentH = h12;
+      let nextH = (h12 % 12) + 1;
+
+      let prefix = (currentH === 1) ? "Es la" : "Son las";
+      let nextPrefix = (nextH === 1) ? "Es la" : "Son las";
+
+      if (m === 0) {
+        return `${prefix} ${nums[currentH]} en punto`;
+      } else if (m === 15) {
+        return `${prefix} ${nums[currentH]} y cuarto`;
+      } else if (m === 30) {
+        return `${prefix} ${nums[currentH]} y media`;
+      } else if (m === 45) {
+        return `${nextPrefix} ${nums[nextH]} menos cuarto`;
+      } else if (m < 30) {
+        return `${prefix} ${nums[currentH]} y ${m}`;
+      } else if (m > 30 && m % 5 === 0) {
+        let diff = 60 - m;
+        return `${nextPrefix} ${nums[nextH]} menos ${diff}`;
+      } else {
+        return `${prefix} ${nums[currentH]} y ${m} minutos`;
+      }
+    }
+
+    /* =========================================================================
+       40 ROUNDS & LEVEL PROGRESSION LOGIC
+       ========================================================================= */
+    function switchMode(modeNum) {
+      currentMode = modeNum;
+
+      [1, 2, 3].forEach(m => {
+        const btn = document.getElementById(`tab-mode-${m}`);
+        if (m === modeNum) {
+          btn.className = "py-2 px-2 sm:px-3 rounded-xl font-fredoka text-xs sm:text-sm md:text-base font-bold transition shadow-md bg-amber-400 text-indigo-950 hover:bg-amber-300 active:scale-95 flex items-center justify-center gap-1";
+        } else {
+          btn.className = "py-2 px-2 sm:px-3 rounded-xl font-fredoka text-xs sm:text-sm md:text-base font-bold transition text-white hover:bg-white/20 active:scale-95 flex items-center justify-center gap-1";
+        }
+      });
+
+      const cardTask = document.getElementById('card-task');
+      const cardDigital = document.getElementById('card-digital');
+      const containerChoices = document.getElementById('container-choices');
+      const btnCheck = document.getElementById('btn-check');
+      const btnNext = document.getElementById('btn-next');
+      const diffBar = document.getElementById('difficulty-bar');
+
+      hideHint();
+
+      if (modeNum === 1) { // Put arrows mode
+        cardTask.classList.remove('hidden');
+        cardDigital.classList.add('hidden');
+        containerChoices.classList.add('hidden');
+        btnCheck.classList.remove('hidden');
+        btnNext.classList.add('hidden');
+        diffBar.classList.remove('opacity-40', 'pointer-events-none');
+        setMascot("🦉", "Profe Búho dice:", "¡Mueve las flechas para poner la hora propuesta!");
+        generateNewTask();
+      } 
+      else if (modeNum === 2) { // Read clock mode
+        cardTask.classList.add('hidden');
+        cardDigital.classList.add('hidden');
+        containerChoices.classList.remove('hidden');
+        btnCheck.classList.add('hidden');
+        btnNext.classList.add('hidden');
+        diffBar.classList.remove('opacity-40', 'pointer-events-none');
+        setMascot("🦊", "Zorrito dice:", "Observa las flechas y pulsa la respuesta correcta.");
+        generateNewTask();
+      } 
+      else if (modeNum === 3) { // Free practice mode
+        cardTask.classList.add('hidden');
+        cardDigital.classList.remove('hidden');
+        containerChoices.classList.add('hidden');
+        btnCheck.classList.add('hidden');
+        btnNext.classList.add('hidden');
+        diffBar.classList.add('opacity-40', 'pointer-events-none');
+        setMascot("🦄", "Unicornio dice:", "¡Mueve las flechas o usa los botones para explorar libremente!");
+        totalMinutes = 255; // 04:15
+        updateClockDisplay();
+      }
+    }
+
+    function setDifficulty(diff) {
+      currentDifficulty = diff;
+      currentRound = 1;
+
+      // Update Header Text & Level Badge
+      const info = levelDescriptions[diff];
+      document.getElementById('level-badge').textContent = info.name;
+      document.getElementById('level-title-text').textContent = info.title;
+
+      document.querySelectorAll('.diff-btn').forEach(btn => {
+        const d = parseInt(btn.getAttribute('data-diff'));
+        if (d === diff) {
+          btn.className = "diff-btn px-2.5 py-1 rounded-xl text-xs sm:text-sm font-fredoka font-bold transition bg-rose-500 text-white shadow-md border-2 border-white";
+        } else {
+          btn.className = "diff-btn px-2.5 py-1 rounded-xl text-xs sm:text-sm font-fredoka font-bold transition bg-white/80 text-indigo-950 hover:bg-white shadow-sm border-2 border-transparent";
+        }
+      });
+
+      updateProgressBar();
+
+      if (currentMode !== 3) {
+        generateNewTask();
+      }
+    }
+
+    function updateProgressBar() {
+      document.getElementById('round-counter-text').textContent = currentRound;
+      const percentage = Math.min(100, Math.max(2.5, (currentRound / TOTAL_ROUNDS) * 100));
+      document.getElementById('round-progress-bar').style.width = `${percentage}%`;
+    }
+
+    function generateNewTask() {
+      hideHint();
+      document.getElementById('btn-next').classList.add('hidden');
+
+      const step = getDifficultyStep();
+      const possibleStepsPer12H = 720 / (step === 1 ? 5 : step);
+
+      targetTotalMinutes = Math.floor(Math.random() * possibleStepsPer12H) * (step === 1 ? 5 : step);
+
+      const tHours12 = Math.floor(targetTotalMinutes / 60) % 12 || 12;
+      const tMinutes = targetTotalMinutes % 60;
+
+      if (currentMode === 1) { // Set arrows
+        totalMinutes = (targetTotalMinutes + 180 + Math.floor(Math.random() * 120)) % 720;
+        updateClockDisplay();
+
+        const hStr = tHours12.toString().padStart(2, '0');
+        const mStr = tMinutes.toString().padStart(2, '0');
+        document.getElementById('target-display').textContent = `${hStr}:${mStr}`;
+        document.getElementById('target-spanish-text').textContent = `"${getTimeInSpanish(tHours12, tMinutes)}"`;
+
+        if (speechEnabled) {
+          speakText(`Pon las flechas en las ${getTimeInSpanish(tHours12, tMinutes)}`);
+        }
+      } 
+      else if (currentMode === 2) { // Read clock
+        totalMinutes = targetTotalMinutes;
+        updateClockDisplay();
+
+        generateMultipleChoiceOptions(tHours12, tMinutes);
+
+        if (speechEnabled) {
+          speakText("¿Qué hora marcan las flechas?");
+        }
+      }
+    }
+
+    function generateMultipleChoiceOptions(tHours12, tMinutes) {
+      const choicesContainer = document.getElementById('container-choices');
+      choicesContainer.innerHTML = '';
+
+      const correctStr = `${tHours12.toString().padStart(2, '0')}:${tMinutes.toString().padStart(2, '0')}`;
+      let options = [correctStr];
+
+      const step = getDifficultyStep();
+
+      while (options.length < 4) {
+        let fakeH = Math.floor(Math.random() * 12) + 1;
+        let fakeM = (Math.floor(Math.random() * (60 / Math.min(step, 15))) * Math.min(step, 15)) % 60;
+        let fakeStr = `${fakeH.toString().padStart(2, '0')}:${fakeM.toString().padStart(2, '0')}`;
+
+        if (!options.includes(fakeStr)) {
+          options.push(fakeStr);
+        }
+      }
+
+      options.sort(() => Math.random() - 0.5);
+
+      options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = "p-3 sm:p-4 rounded-2xl bg-white border-2 border-indigo-200 hover:border-indigo-500 font-fredoka text-xl sm:text-2xl font-extrabold text-indigo-950 shadow-md hover:shadow-lg transition active:scale-95";
+        btn.textContent = opt;
+        btn.onclick = () => checkChoiceAnswer(opt, correctStr);
+        choicesContainer.appendChild(btn);
+      });
+    }
+
+    /* =========================================================================
+       ANSWER CHECKING & MASCOT FEEDBACK
+       ========================================================================= */
+    function checkAnswer() {
+      if (currentMode === 1) {
+        const step = getDifficultyStep();
+        const diff = Math.abs((totalMinutes % 720) - (targetTotalMinutes % 720));
+
+        if (diff === 0 || diff === 720) {
+          handleSuccess();
+        } else if (step <= 1 && diff <= 1) {
+          handleSuccess();
+        } else {
+          handleError();
+        }
+      }
+    }
+
+    function checkChoiceAnswer(selectedOpt, correctStr) {
+      if (selectedOpt === correctStr) {
+        handleSuccess();
+      } else {
+        handleError();
+      }
+    }
+
+    const happyMascots = [
+      { emoji: "🎉", name: "Estrellita dice:", text: "¡EXCELENTE! ¡Has colocado las flechas perfectamente! ⭐" },
+      { emoji: "🚀", name: "Cohete dice:", text: "¡SUPER BIEN! ¡Acierto conseguido! 🚀" },
+      { emoji: "🦁", name: "Leoncio dice:", text: "¡GENIAL! ¡Vas a ritmo de campeón! 🦁" }
+    ];
+
+    function handleSuccess() {
+      playSuccessSound();
+      triggerConfetti();
+
+      streak++;
+      score += 10 * currentDifficulty;
+      if (streak % 3 === 0) {
+        stars++;
+      }
+
+      updateStatsDisplay();
+
+      const mascot = happyMascots[Math.floor(Math.random() * happyMascots.length)];
+      setMascot(mascot.emoji, mascot.name, mascot.text);
+
+      if (speechEnabled) {
+        speakText("¡Excelente! ¡Hora correcta!");
+      }
+
+      if (currentRound >= TOTAL_ROUNDS) {
+        // LEVEL FINISHED!
+        setTimeout(() => {
+          showLevelCompletionModal();
+        }, 800);
+      } else {
+        document.getElementById('btn-next').classList.remove('hidden');
+      }
+    }
+
+    function handleError() {
+      playErrorSound();
+      streak = 0;
+      updateStatsDisplay();
+
+      setMascot("🐸", "Ranita dice:", "¡Casi! Revisa dónde apuntan las flechas y vuelve a probar.");
+
+      if (speechEnabled) {
+        speakText("Casi casi, inténtalo de nuevo.");
+      }
+    }
+
+    function nextRound() {
+      if (currentRound < TOTAL_ROUNDS) {
+        currentRound++;
+        updateProgressBar();
+        generateNewTask();
+      }
+    }
+
+    function setMascot(emoji, title, msg) {
+      document.getElementById('mascot-avatar').textContent = emoji;
+      document.getElementById('mascot-title').textContent = title;
+      document.getElementById('mascot-message').textContent = msg;
+    }
+
+    function updateStatsDisplay() {
+      document.getElementById('star-count').textContent = stars;
+      document.getElementById('score-count').textContent = `${score} pts`;
+      document.getElementById('streak-count').textContent = streak;
+    }
+
+    /* =========================================================================
+       VICTORY MODAL & LEVEL ADVANCEMENT
+       ========================================================================= */
+    function showLevelCompletionModal() {
+      playLevelCompleteSound();
+      triggerConfetti();
+
+      document.getElementById('modal-stars').textContent = `⭐ ${stars}`;
+      document.getElementById('modal-score').textContent = `${score} pts`;
+
+      const btnNextLevel = document.getElementById('btn-next-level');
+      if (currentDifficulty < 4) {
+        btnNextLevel.classList.remove('hidden');
+        btnNextLevel.textContent = `🚀 ¡Pasar al Nivel ${currentDifficulty + 1}!`;
+      } else {
+        btnNextLevel.classList.add('hidden');
+      }
+
+      document.getElementById('victory-subtitle').textContent = `¡Has completado las 40 rondas del Nivel ${currentDifficulty}! 🏆`;
+      document.getElementById('victory-modal').classList.remove('hidden');
+    }
+
+    function advanceToNextLevel() {
+      document.getElementById('victory-modal').classList.add('hidden');
+      if (currentDifficulty < 4) {
+        setDifficulty(currentDifficulty + 1);
+      } else {
+        restartCurrentLevel();
+      }
+    }
+
+    function restartCurrentLevel() {
+      document.getElementById('victory-modal').classList.add('hidden');
+      setDifficulty(currentDifficulty);
+    }
+
+    /* =========================================================================
+       AUDIO & SPEECH SYNTHESIS ENGINE
+       ========================================================================= */
+    function toggleHint() {
+      hintActive = !hintActive;
+      if (hintActive) {
+        updateHintGuides();
+        playTickSound();
+      } else {
+        hideHint();
+      }
+    }
+
+    function updateHintGuides() {
+      const hintHour = document.getElementById('hint-hour-line');
+      const hintMin = document.getElementById('hint-min-line');
+
+      if (currentMode === 1) {
+        const targetMinAngle = (targetTotalMinutes % 60) * 6;
+        const targetHourAngle = targetTotalMinutes * 0.5;
+
+        hintHour.setAttribute('transform', `rotate(${targetHourAngle}, 200, 200)`);
+        hintMin.setAttribute('transform', `rotate(${targetMinAngle}, 200, 200)`);
+
+        hintHour.setAttribute('opacity', '0.8');
+        hintMin.setAttribute('opacity', '0.8');
+      }
+    }
+
+    function hideHint() {
+      hintActive = false;
+      document.getElementById('hint-hour-line').setAttribute('opacity', '0');
+      document.getElementById('hint-min-line').setAttribute('opacity', '0');
+    }
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      document.getElementById('btn-sound').textContent = soundEnabled ? '🔊' : '🔇';
+    }
+
+    function toggleSpeech() {
+      speechEnabled = !speechEnabled;
+      document.getElementById('btn-speech').textContent = speechEnabled ? '🗣️' : '🤐';
+    }
+
+    function playTickSound() {
+      if (!soundEnabled) return;
+      initAudio();
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.03);
+
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.03);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.03);
+    }
+
+    function playSuccessSound() {
+      if (!soundEnabled) return;
+      initAudio();
+
+      const notes = [523.25, 659.25, 783.99, 1046.50];
+      notes.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+
+        const startTime = audioCtx.currentTime + idx * 0.07;
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.2, startTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(startTime);
+        osc.stop(startTime + 0.25);
+      });
+    }
+
+    function playLevelCompleteSound() {
+      if (!soundEnabled) return;
+      initAudio();
+
+      const notes = [440, 554.37, 659.25, 880, 1108.73];
+      notes.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+
+        const startTime = audioCtx.currentTime + idx * 0.1;
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.3, startTime + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(startTime);
+        osc.stop(startTime + 0.4);
+      });
+    }
+
+    function playErrorSound() {
+      if (!soundEnabled) return;
+      initAudio();
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+      osc.frequency.setValueAtTime(160, audioCtx.currentTime + 0.12);
+
+      gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.28);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.28);
+    }
+
+    function speakText(text) {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'es-ES';
+      utterance.rate = 0.9;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function speakCurrentTime() {
+      const hours12 = Math.floor(totalMinutes / 60) % 12 || 12;
+      const minutes = Math.floor(totalMinutes % 60);
+      speakText(getTimeInSpanish(hours12, minutes));
+    }
+
+    /* =========================================================================
+       CELEBRATORY CONFETTI ANIMATION
+       ========================================================================= */
+    function triggerConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const particles = [];
+      const colors = ['#FF2A6D', '#00B4D8', '#10B981', '#F59E0B', '#EC4899', '#8B5CF6'];
+
+      for (let i = 0; i < 90; i++) {
+        particles.push({
+          x: canvas.width / 2,
+          y: canvas.height / 2,
+          vx: (Math.random() - 0.5) * 18,
+          vy: (Math.random() - 0.75) * 18,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          size: Math.random() * 10 + 4,
+          rotation: Math.random() * 360,
+          vRot: (Math.random() - 0.5) * 14
+        });
+      }
+
+      let frame = 0;
+      function animateConfetti() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.38;
+          p.rotation += p.vRot;
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rotation * Math.PI) / 180);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+          ctx.restore();
+        });
+
+        frame++;
+        if (frame < 95) {
+          requestAnimationFrame(animateConfetti);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+
+      animateConfetti();
+    }
+  </script>
+</body>
+</html>
